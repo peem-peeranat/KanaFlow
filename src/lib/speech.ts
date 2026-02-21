@@ -12,7 +12,10 @@ function getJapaneseVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined") return null;
   if (cachedVoice) return cachedVoice;
 
-  const voices = window.speechSynthesis.getVoices();
+  let voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) {
+    voices = window.speechSynthesis.getVoices();
+  }
   const jaVoices = voices.filter(
     (v) => v.lang.startsWith("ja") || v.lang.includes("ja")
   );
@@ -57,18 +60,20 @@ export function ensureVoicesLoaded(): Promise<SpeechSynthesisVoice[]> {
 
 /**
  * พูดตัวอักษร kana
- * @param kanaChar - ตัวอักษรญี่ปุ่น (あ, か, し...) - ให้ผลลัพธ์ดีกว่า romaji
- * @param fallbackRomaji - ใช้เมื่อไม่มี kanaChar (optional)
+ * ปรับปรุงสำหรับ mobile: ช้าลง, ไม่ cancel ก่อน speak (ลดปัญหาเสียงขาดบน iOS/Android)
  */
 export function speak(text: string, lang = "ja-JP"): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !text.trim()) return;
 
-  window.speechSynthesis.cancel();
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+  }
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = lang;
-  utterance.rate = 0.85; // ช้าลงเล็กน้อยเพื่อความชัดเจน
+  utterance.rate = 0.65;
   utterance.pitch = 1;
+  utterance.volume = 1;
 
   const voice = getJapaneseVoice();
   if (voice) {
